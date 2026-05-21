@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "curvature-transformer-bench"
+version = "0.1.0"
+description = "Profiling-driven optimizer benchmark for first-order and curvature-aware methods."
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
