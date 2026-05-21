@@ -8,12 +8,6 @@ from torch import nn
 
 @dataclass
 class AverageMeter:
-    """
-    Track a running average.
-
-    Useful for loss, accuracy, timing, memory, etc.
-    """
-
     name: str
     total: float = 0.0
     count: int = 0
@@ -38,9 +32,6 @@ def classification_accuracy(
     logits: torch.Tensor,
     targets: torch.Tensor,
 ) -> float:
-    """
-    Compute top-1 classification accuracy.
-    """
     preds = logits.argmax(dim=1)
     correct = (preds == targets).sum().item()
     total = targets.numel()
@@ -57,12 +48,6 @@ def topk_accuracy(
     targets: torch.Tensor,
     topk: tuple[int, ...] = (1,),
 ) -> dict[str, float]:
-    """
-    Compute top-k accuracies.
-
-    Example:
-      topk_accuracy(logits, y, topk=(1, 5))
-    """
     max_k = max(topk)
     batch_size = targets.size(0)
 
@@ -82,9 +67,6 @@ def topk_accuracy(
 
 @torch.no_grad()
 def parameter_norm(model: nn.Module) -> float:
-    """
-    L2 norm of trainable parameters.
-    """
     total = torch.tensor(0.0)
 
     for p in model.parameters():
@@ -97,9 +79,6 @@ def parameter_norm(model: nn.Module) -> float:
 
 @torch.no_grad()
 def gradient_norm(model: nn.Module) -> float:
-    """
-    L2 norm of all available gradients.
-    """
     total = torch.tensor(0.0)
     found_grad = False
 
@@ -120,14 +99,6 @@ def update_norm_before_after(
     before: list[torch.Tensor],
     model: nn.Module,
 ) -> float:
-    """
-    Compute ||theta_after - theta_before||.
-
-    Usage:
-      before = clone_trainable_parameters(model)
-      optimizer.step()
-      update_norm = update_norm_before_after(before, model)
-    """
     total = torch.tensor(0.0)
     idx = 0
 
@@ -143,20 +114,10 @@ def update_norm_before_after(
 
 @torch.no_grad()
 def clone_trainable_parameters(model: nn.Module) -> list[torch.Tensor]:
-    """
-    Clone trainable parameters before an optimizer step.
-
-    This is useful if you want update_norm.
-    """
     return [p.detach().clone().cpu() for p in model.parameters() if p.requires_grad]
 
 
 def optimizer_state_numel(optimizer) -> int:
-    """
-    Count number of scalar values stored in optimizer state.
-
-    This is useful for comparing SGD, Adam, AdamW, L-BFGS, etc.
-    """
     if optimizer is None:
         return 0
 
@@ -175,9 +136,6 @@ def optimizer_state_numel(optimizer) -> int:
 
 
 def optimizer_state_memory_mb(optimizer) -> float:
-    """
-    Estimate optimizer state memory in MB.
-    """
     if optimizer is None:
         return 0.0
 
@@ -196,9 +154,6 @@ def optimizer_state_memory_mb(optimizer) -> float:
 
 
 def model_parameter_memory_mb(model: nn.Module) -> float:
-    """
-    Estimate model parameter memory in MB.
-    """
     total_bytes = 0
 
     for p in model.parameters():
@@ -208,11 +163,6 @@ def model_parameter_memory_mb(model: nn.Module) -> float:
 
 
 def safe_float(value) -> float | None:
-    """
-    Convert to float when possible.
-
-    Useful before writing JSON summaries.
-    """
     if value is None:
         return None
 

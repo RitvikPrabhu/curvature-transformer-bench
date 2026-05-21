@@ -10,11 +10,6 @@ import torch
 
 
 def sync_device(device: torch.device) -> None:
-    """
-    Synchronize device before/after timing.
-
-    CUDA is asynchronous, so timing without synchronization can be misleading.
-    """
     if device.type == "cuda":
         torch.cuda.synchronize()
 
@@ -27,22 +22,6 @@ class TimerResult:
 
 @dataclass
 class StepTimer:
-    """
-    Simple reusable timer for one training step.
-
-    Example:
-
-      timer = StepTimer(device)
-
-      with timer.time("forward"):
-          logits = model(x)
-
-      with timer.time("backward"):
-          loss.backward()
-
-      print(timer.results)
-    """
-
     device: torch.device
     results: dict[str, float] = field(default_factory=dict)
 
@@ -69,12 +48,6 @@ class StepTimer:
 
 @dataclass
 class CudaMemoryTracker:
-    """
-    Track CUDA peak memory.
-
-    On non-CUDA devices, returns zero.
-    """
-
     device: torch.device
 
     def reset(self) -> None:
@@ -89,12 +62,6 @@ class CudaMemoryTracker:
 
 
 class NullProfiler:
-    """
-    No-op profiler.
-
-    Use this when profiling is disabled but you still want the same interface.
-    """
-
     def __enter__(self):
         return self
 
@@ -106,15 +73,6 @@ class NullProfiler:
 
 
 class TorchProfilerWrapper:
-    """
-    Thin wrapper around torch.profiler.
-
-    This is optional and heavier than the manual timers.
-
-    For initial experiments, manual timing is enough. Use this later when you
-    want Chrome traces or operator-level breakdowns.
-    """
-
     def __init__(
         self,
         output_dir: str | Path,
@@ -176,19 +134,6 @@ class TorchProfilerWrapper:
 
 
 def build_profiler(cfg: dict, output_dir: str | Path):
-    """
-    Build profiler from runtime config.
-
-    Example config:
-
-      runtime:
-        profiler:
-          enabled: true
-          wait: 1
-          warmup: 1
-          active: 3
-          repeat: 1
-    """
     profiler_cfg = cfg.get("profiler", {})
     enabled = bool(profiler_cfg.get("enabled", False))
 

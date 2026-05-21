@@ -8,15 +8,6 @@ import pandas as pd
 
 
 def _resolve_history_paths(path: str | Path) -> tuple[Path, Path | None]:
-    """
-    Accept either:
-      - output directory
-      - path to history_steps.csv
-
-    Returns:
-      step_csv
-      epoch_csv or None
-    """
     path = Path(path)
 
     if path.is_dir():
@@ -140,11 +131,6 @@ def plot_time_breakdown(
     out_dir: str | Path,
     title: str | None = None,
 ) -> Path:
-    """
-    Plot average forward/backward/optimizer time.
-
-    This is one of the most important plots for your paper.
-    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -174,12 +160,6 @@ def plot_optimizer_fraction(
     out_dir: str | Path,
     title: str | None = None,
 ) -> Path | None:
-    """
-    Plot optimizer time as a fraction of total step time.
-
-    This helps answer:
-      Is the optimizer itself becoming the bottleneck?
-    """
     required = {"optimizer_ms", "step_ms"}
 
     if not required.issubset(step_df.columns):
@@ -215,11 +195,6 @@ def plot_closure_calls(
     out_dir: str | Path,
     title: str | None = None,
 ) -> Path | None:
-    """
-    Plot closure calls per step.
-
-    This is especially useful for L-BFGS.
-    """
     if "closure_calls" not in step_df.columns:
         return None
 
@@ -248,9 +223,6 @@ def plot_newton_breakdown(
     out_dir: str | Path,
     title: str | None = None,
 ) -> Path | None:
-    """
-    Plot Hessian time and linear solve time for Newton runs.
-    """
     required = {"hessian_ms", "linear_solve_ms"}
 
     if not required.issubset(step_df.columns):
@@ -278,13 +250,6 @@ def plot_history(
     path: str | Path,
     out_dir: str | Path | None = None,
 ) -> list[Path]:
-    """
-    Generate all standard plots for one run.
-
-    Usage:
-      plot_history("results/adamw_mlp")
-      plot_history("results/adamw_mlp/history_steps.csv")
-    """
     step_csv, epoch_csv = _resolve_history_paths(path)
 
     if out_dir is None:
@@ -378,9 +343,6 @@ def plot_history(
 
 
 def load_summaries(result_dirs: list[str | Path]) -> pd.DataFrame:
-    """
-    Load summary.json files from multiple result directories.
-    """
     records = []
 
     for result_dir in result_dirs:
@@ -403,11 +365,6 @@ def plot_summary_time_to_quality(
     summary_df: pd.DataFrame,
     out_dir: str | Path,
 ) -> Path | None:
-    """
-    Bar plot of total wall time by optimizer.
-
-    Later, this can be extended to time-to-target accuracy.
-    """
     if len(summary_df) == 0:
         return None
 
@@ -435,9 +392,6 @@ def plot_summary_accuracy(
     summary_df: pd.DataFrame,
     out_dir: str | Path,
 ) -> Path | None:
-    """
-    Bar plot of best validation accuracy by optimizer.
-    """
     if len(summary_df) == 0:
         return None
 

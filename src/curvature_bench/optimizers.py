@@ -6,13 +6,6 @@ from curvature_bench.registry import OPTIMIZER_REGISTRY
 
 
 class DenseBFGS(torch.optim.Optimizer):
-    """
-    Dense inverse-BFGS optimizer.
-
-    This is only for tiny models because it stores a full dense inverse-Hessian
-    approximation.
-    """
-
     def __init__(
         self,
         params,
@@ -186,10 +179,6 @@ def build_bfgs(cfg: dict, params):
 
 @OPTIMIZER_REGISTRY.register("newton")
 def build_newton(cfg: dict, params):
-    """
-    Exact Newton is handled specially in the engine because it needs the model,
-    loss function, input batch, and target batch.
-    """
     return None
 
 

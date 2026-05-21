@@ -29,9 +29,4 @@ def deep_update(base: dict, update: dict) -> dict:
 
 
 def load_experiment_config(path: str | Path) -> dict:
-    """
-    Loads one complete experiment YAML.
-
-    Keep this simple for now. Later, this can support config composition.
-    """
     return load_yaml(path)

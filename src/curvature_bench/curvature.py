@@ -14,26 +14,14 @@ except ImportError:
 
 
 def trainable_named_parameters(model: nn.Module) -> list[tuple[str, torch.nn.Parameter]]:
-    """
-    Return only trainable parameters.
-
-    We use this because exact Newton and dense BFGS should operate only on
-    parameters that require gradients.
-    """
     return [(name, p) for name, p in model.named_parameters() if p.requires_grad]
 
 
 def num_trainable_parameters(model: nn.Module) -> int:
-    """
-    Count trainable parameters.
-    """
     return sum(p.numel() for _, p in trainable_named_parameters(model))
 
 
 def flatten_trainable_parameters(model: nn.Module) -> torch.Tensor:
-    """
-    Flatten trainable parameters into one vector.
-    """
     params = [p for _, p in trainable_named_parameters(model)]
 
     if len(params) == 0:
@@ -43,9 +31,6 @@ def flatten_trainable_parameters(model: nn.Module) -> torch.Tensor:
 
 
 def assign_trainable_parameters(model: nn.Module, theta: torch.Tensor) -> None:
-    """
-    Copy a flat vector back into the model's trainable parameters.
-    """
     params = [p for _, p in trainable_named_parameters(model)]
 
     if len(params) == 0:
@@ -58,9 +43,6 @@ def assign_trainable_parameters(model: nn.Module, theta: torch.Tensor) -> None:
 def _parameter_metadata(
     named_params: list[tuple[str, torch.nn.Parameter]],
 ) -> list[tuple[str, torch.Size, int]]:
-    """
-    Store enough metadata to unflatten a parameter vector.
-    """
     return [(name, p.shape, p.numel()) for name, p in named_params]
 
 
@@ -68,11 +50,6 @@ def _unflatten_to_param_dict(
     theta: torch.Tensor,
     metadata: list[tuple[str, torch.Size, int]],
 ) -> dict[str, torch.Tensor]:
-    """
-    Convert a flat vector theta back into a parameter dictionary.
-
-    This dictionary can be passed into functional_call.
-    """
     out: dict[str, torch.Tensor] = {}
     offset = 0
 
@@ -91,20 +68,6 @@ def compute_full_hessian(
     max_params: int = 10_000,
     vectorize: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Compute loss, gradient, and full Hessian with respect to all trainable parameters.
-
-    This is only for tiny models.
-
-    Returns:
-      loss
-      grad vector
-      Hessian matrix
-
-    Shapes:
-      grad:    [num_params]
-      hessian: [num_params, num_params]
-    """
     named_params = trainable_named_parameters(model)
     params = [p for _, p in named_params]
     n_params = sum(p.numel() for p in params)
@@ -125,7 +88,6 @@ def compute_full_hessian(
     def loss_from_theta(theta: torch.Tensor) -> torch.Tensor:
         param_dict = _unflatten_to_param_dict(theta, metadata)
 
-        # functional_call expects one dictionary containing parameters and buffers.
         state_dict: dict[str, torch.Tensor] = {}
         state_dict.update(buffers)
         state_dict.update(param_dict)
@@ -155,23 +117,6 @@ def exact_newton_step(
     max_params: int = 10_000,
     vectorize: bool = True,
 ) -> dict[str, Any]:
-    """
-    Take one damped exact Newton step.
-
-    Newton step:
-
-        theta_new = theta - lr * (H + damping I)^(-1) g
-
-    This is intentionally only for tiny models because it explicitly builds
-    the full Hessian matrix.
-
-    The damping term makes the system more stable:
-
-        H_damped = H + damping * I
-
-    This prevents the linear solve from being too unstable when the Hessian
-    is singular, nearly singular, or indefinite.
-    """
     n_params = num_trainable_parameters(model)
 
     if n_params > max_params:
@@ -235,17 +180,6 @@ def exact_newton_step(
 def hessian_eigenvalue_summary(
     hessian: torch.Tensor,
 ) -> dict[str, float]:
-    """
-    Summarize Hessian eigenvalues.
-
-    Useful later when you want to say things like:
-      - Hessian is positive definite
-      - Hessian is indefinite
-      - Hessian has negative curvature
-      - condition number is large
-
-    This should only be used for small Hessians.
-    """
     if hessian.ndim != 2 or hessian.size(0) != hessian.size(1):
         raise ValueError("hessian must be a square matrix.")
 

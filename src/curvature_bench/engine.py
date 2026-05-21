@@ -19,12 +19,6 @@ from curvature_bench.optimizers import DenseBFGS, build_optimizer
 
 
 def set_seed(seed: int) -> None:
-    """
-    Make runs more reproducible.
-
-    This will not guarantee perfect reproducibility across all hardware,
-    but it is enough for the first version of the benchmark.
-    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -32,24 +26,6 @@ def set_seed(seed: int) -> None:
 
 
 def get_device(runtime_cfg: dict[str, Any]) -> torch.device:
-    """
-    Pick the runtime device.
-
-    Config example:
-
-    runtime:
-      device: auto
-
-    or:
-
-    runtime:
-      device: cuda
-
-    or:
-
-    runtime:
-      device: cpu
-    """
     requested = runtime_cfg.get("device", "auto")
 
     if requested == "auto":
@@ -63,26 +39,11 @@ def get_device(runtime_cfg: dict[str, Any]) -> torch.device:
 
 
 def sync_device(device: torch.device) -> None:
-    """
-    Synchronize before/after timing blocks.
-
-    CUDA operations are asynchronous by default. Without synchronization,
-    Python timers can under-report GPU time.
-
-    For CPU, this does nothing.
-    For MPS, PyTorch synchronization support is more limited, so we keep it simple.
-    """
     if device.type == "cuda":
         torch.cuda.synchronize()
 
 
 def current_peak_memory_mb(device: torch.device) -> float:
-    """
-    Return current peak allocated memory in MB.
-
-    This is most meaningful on CUDA.
-    For CPU/MPS, return 0 for now.
-    """
     if device.type == "cuda":
         return torch.cuda.max_memory_allocated(device) / 1024**2
 
@@ -90,20 +51,11 @@ def current_peak_memory_mb(device: torch.device) -> float:
 
 
 def reset_peak_memory(device: torch.device) -> None:
-    """
-    Reset CUDA peak memory stats before a run.
-    """
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
 
 def make_criterion(cfg: dict[str, Any]) -> nn.Module:
-    """
-    Build the loss function.
-
-    For now, classification uses CrossEntropyLoss.
-    Later, this can become a registry too.
-    """
     loss_name = cfg.get("loss", "cross_entropy").lower()
 
     if loss_name == "cross_entropy":
@@ -119,12 +71,6 @@ def evaluate(
     criterion: nn.Module,
     device: torch.device,
 ) -> dict[str, float]:
-    """
-    Evaluate the model on the validation set.
-
-    This returns loss and accuracy for classification.
-    Later, this can be generalized for language modeling, regression, etc.
-    """
     model.eval()
 
     total_loss = 0.0
@@ -156,11 +102,6 @@ def evaluate(
 
 
 def get_current_lr(optimizer) -> float | None:
-    """
-    Read the learning rate from the first parameter group.
-
-    Newton is special because it may not have a normal torch optimizer.
-    """
     if optimizer is None:
         return None
 
@@ -174,14 +115,6 @@ def get_current_lr(optimizer) -> float | None:
 
 
 def is_closure_optimizer(optimizer) -> bool:
-    """
-    Some optimizers need a closure.
-
-    PyTorch LBFGS needs a closure because it may reevaluate the loss
-    multiple times during one optimizer step.
-
-    DenseBFGS also uses a closure in this benchmark implementation.
-    """
     return isinstance(optimizer, torch.optim.LBFGS) or isinstance(optimizer, DenseBFGS)
 
 
@@ -193,20 +126,6 @@ def run_standard_step(
     y: torch.Tensor,
     device: torch.device,
 ) -> dict[str, Any]:
-    """
-    Run one normal first-order style optimizer step.
-
-    This path is for:
-      - SGD with momentum
-      - Adam
-      - AdamW
-      - future optimizers that do not require closures
-
-    It separately times:
-      - forward pass
-      - backward pass
-      - optimizer step
-    """
     model.train()
 
     step_info: dict[str, Any] = {
@@ -251,23 +170,6 @@ def run_closure_step(
     y: torch.Tensor,
     device: torch.device,
 ) -> dict[str, Any]:
-    """
-    Run one closure-based optimizer step.
-
-    This path is for:
-      - L-BFGS
-      - dense BFGS
-
-    Important detail:
-    L-BFGS may call the closure multiple times inside one optimizer step.
-    That means one "step" can contain several forward/backward passes.
-
-    So we track:
-      - total forward time across closure calls
-      - total backward time across closure calls
-      - number of closure calls
-      - optimizer overhead outside forward/backward
-    """
     model.train()
 
     closure_stats: dict[str, Any] = {
@@ -307,7 +209,6 @@ def run_closure_step(
     forward_ms = closure_stats["forward_ms"]
     backward_ms = closure_stats["backward_ms"]
 
-    # Anything not explained by forward/backward is counted as optimizer overhead.
     optimizer_ms = max(opt_total_ms - forward_ms - backward_ms, 0.0)
 
     return {
@@ -327,21 +228,6 @@ def run_newton_step(
     y: torch.Tensor,
     device: torch.device,
 ) -> dict[str, Any]:
-    """
-    Run one exact Newton step.
-
-    Exact Newton is special because it is not a normal torch optimizer here.
-    It needs:
-      - model
-      - criterion
-      - current batch
-      - damping
-      - parameter vector
-      - Hessian computation
-      - linear solve
-
-    This should only be used on tiny models.
-    """
     model.train()
 
     sync_device(device)
@@ -379,11 +265,6 @@ def summarize_history(
     total_wall_time_s: float,
     num_params: int,
 ) -> dict[str, Any]:
-    """
-    Build a compact summary for one experiment.
-
-    This is what you will compare across optimizers.
-    """
     optimizer_name = run_cfg["optimizer"]["name"]
 
     target_acc = run_cfg.get("training", {}).get("target_acc", None)
@@ -445,27 +326,6 @@ def summarize_history(
 
 
 def train_run(cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
-    """
-    Run one complete experiment.
-
-    This is the main entry point for:
-      - scripts/run_experiment.py
-      - testbed/mlp_testbed.py
-      - notebooks
-
-    The config controls everything:
-      - dataset
-      - model
-      - optimizer
-      - runtime
-      - training length
-      - output directory
-
-    This function returns:
-      - step-level history dataframe
-      - epoch-level validation dataframe
-      - summary dictionary
-    """
     seed = int(cfg.get("seed", 123))
     set_seed(seed)
 
@@ -519,8 +379,6 @@ def train_run(cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str
         iterator = enumerate(train_loader)
 
         if limit_train_batches is not None:
-            # This is fine for small testbed runs.
-            # Later, we can avoid materializing the list.
             iterator = list(iterator)[: int(limit_train_batches)]
 
         progress = tqdm(
@@ -593,7 +451,6 @@ def train_run(cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str
                 "wall_time_s": wall_time_s,
             }
 
-            # Optional Newton-specific fields.
             if "hessian_ms" in step_info:
                 record["hessian_ms"] = float(step_info["hessian_ms"])
 
